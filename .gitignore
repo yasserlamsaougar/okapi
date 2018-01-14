@@ -1,0 +1,10 @@
+build
+gradle
+.gradle
+out
+.idea
+minidata
+target
+libs
+lib
+derby.log
