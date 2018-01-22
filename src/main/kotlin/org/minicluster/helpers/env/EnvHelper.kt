@@ -1,4 +1,4 @@
-package org.minicluster.helpers
+package org.minicluster.helpers.env
 
 import com.github.salomonbrys.kodein.Kodein
 
@@ -8,11 +8,7 @@ class EnvHelper(val kodein: Kodein) {
         return System.getProperty(property)
     }
 
-    fun getTimeNano() : Long {
-        return System.nanoTime()
-    }
-
-    fun getTimeMillis() : Long {
-        return System.currentTimeMillis()
+    fun setJvmProperty(property: String, value: String) {
+        System.setProperty(property, value)
     }
 }

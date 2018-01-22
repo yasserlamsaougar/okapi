@@ -1,17 +1,16 @@
 package org.minicluster
-import com.github.salomonbrys.kodein.Kodein
-import com.github.salomonbrys.kodein.bind
-import com.github.salomonbrys.kodein.singleton
-import org.minicluster.helpers.AuthHelper
-import org.minicluster.helpers.ConfigHelper
-import org.minicluster.helpers.EnvHelper
-import org.minicluster.helpers.KafkaHelper
+
+import com.github.salomonbrys.kodein.*
+import org.minicluster.helpers.kerberos.AuthHelper
+import org.minicluster.helpers.config.ConfigHelper
+import org.minicluster.helpers.env.EnvHelper
+import org.minicluster.helpers.kafka.KafkaHelper
 import org.minicluster.services.KafkaService
 
 
 class Injector {
     val kodein = Kodein {
-        bind() from singleton {
+        bind() from eagerSingleton {
             AuthHelper(kodein)
         }
         bind() from singleton {
@@ -23,10 +22,11 @@ class Injector {
         bind() from singleton {
             KafkaService(kodein)
         }
-
         bind() from singleton {
             EnvHelper(kodein)
         }
+        constant("globalProperties") with "/main.conf"
+        constant("propertiesPrefix") with "main"
     }
 
 }
