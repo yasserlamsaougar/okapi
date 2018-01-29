@@ -13,8 +13,9 @@ interface ServicesConfig {
     fun coreSite(): Path
     fun yarnSite(): Path
     fun hdfsSite(): Path
+    fun kafkaSite(): Path
     fun kerberosConf(): Path
     fun keyTabUser(): String
-    fun keyTab(): Path
-
+    fun keyTab(): String
+    fun hbasePoolSize(): Int = 1
 }

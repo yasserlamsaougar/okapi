@@ -2,10 +2,11 @@ package org.minicluster.helpers.kerberos
 
 import com.github.salomonbrys.kodein.Kodein
 import com.github.salomonbrys.kodein.instance
+import kotlinx.coroutines.experimental.runBlocking
+import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.security.UserGroupInformation
 import org.minicluster.helpers.config.ConfigHelper
 import org.minicluster.helpers.env.EnvHelper
-import java.nio.file.Path
 
 class AuthHelper(kodein: Kodein) {
     private val configHelper: ConfigHelper = kodein.instance()
@@ -16,7 +17,14 @@ class AuthHelper(kodein: Kodein) {
         envHelper.setJvmProperty("java.security.auth.login.config", configHelper.servicesConfig.jaas().toString())
     }
 
-    fun authenticate(user: String = configHelper.servicesConfig.keyTabUser(), keytab: Path = configHelper.servicesConfig.keyTab()): UserGroupInformation {
-        return UserGroupInformation.loginUserFromKeytabAndReturnUGI(user, keytab.toString())
+    fun setConfiguration(configuration: Configuration) {
+        UserGroupInformation.setConfiguration(configuration)
     }
+
+    fun authenticate(user: String = configHelper.servicesConfig.keyTabUser(), keytab: String = configHelper.servicesConfig.keyTab()) {
+        runBlocking {
+            UserGroupInformation.loginUserFromKeytab(user, keytab)
+        }
+    }
+
 }

@@ -4,6 +4,10 @@ import com.github.salomonbrys.kodein.*
 import org.minicluster.helpers.kerberos.AuthHelper
 import org.minicluster.helpers.config.ConfigHelper
 import org.minicluster.helpers.env.EnvHelper
+import org.minicluster.helpers.hbase.ConnectionPool
+import org.minicluster.helpers.hbase.HbaseHelper
+import org.minicluster.helpers.kafka.EasyKafkaConsumer
+import org.minicluster.helpers.kafka.EasyKafkaProducer
 import org.minicluster.helpers.kafka.KafkaHelper
 import org.minicluster.services.KafkaService
 
@@ -24,6 +28,18 @@ class Injector {
         }
         bind() from singleton {
             EnvHelper(kodein)
+        }
+        bind() from singleton {
+            HbaseHelper(kodein)
+        }
+        bind() from singleton {
+            ConnectionPool(kodein)
+        }
+        bind() from singleton {
+            EasyKafkaProducer(kodein)
+        }
+        bind () from singleton {
+            EasyKafkaConsumer(kodein)
         }
         constant("globalProperties") with "/main.conf"
         constant("propertiesPrefix") with "main"

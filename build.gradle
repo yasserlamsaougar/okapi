@@ -2,7 +2,8 @@ group 'minicluster-service'
 version '0.0.1-SNAPSHOT'
 
 buildscript {
-    ext.kotlin_version = '1.2.20'
+    ext.kotlin_version = '1.2.21'
+    ext.kotlin_coroutine_version = '0.22'
     ext.javalin_version = '1.2.1'
     ext.kodein_version = '4.1.0'
     ext.slf4j_version = '1.7.25'
@@ -12,7 +13,9 @@ buildscript {
     ext.mockk_version = '1.6.3'
     ext.cfg4k_version = '0.7.2'
     ext.hadoop_version = '2.7.3.2.6.2.0-205'
-    ext.kafka_version = '2.11-0.10.2.0'
+    ext.kafka_artificat_version = "kafka_2.10"
+    ext.kafka_version = '0.10.1.2.6.2.0-205'
+    ext.hbase_version = '1.3.1'
     repositories {
         mavenCentral()
     }
@@ -42,13 +45,20 @@ repositories {
 
 dependencies {
     compile "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version"
+    compile "org.jetbrains.kotlinx:kotlinx-coroutines-core:$kotlin_coroutine_version"
     compile "io.javalin:javalin:$javalin_version"
     compile "com.github.salomonbrys.kodein:kodein:$kodein_version"
     compile "org.slf4j:slf4j-simple:$slf4j_version"
     compile "com.jdiazcano.cfg4k:cfg4k-core:$cfg4k_version"
     compile "com.jdiazcano.cfg4k:cfg4k-hocon:$cfg4k_version"
     compile "org.apache.hadoop:hadoop-client:$hadoop_version"
-    compile "org.apache.kafka:kafka:$kafka_version"
+    compile "org.apache.kafka:$kafka_artificat_version:$kafka_version"
+
+    compile "org.apache.hbase:hbase:$hbase_version"
+    compile "org.apache.hbase:hbase-common:$hbase_version"
+    compile "org.apache.hbase:hbase-server:$hbase_version"
+    compile "org.apache.hbase:hbase-client:$hbase_version"
+
     testCompile("org.jetbrains.spek:spek-api:$spek_version") {
         exclude group: 'org.jetbrains.kotlin'
     }
@@ -66,4 +76,9 @@ compileKotlin {
 }
 compileTestKotlin {
     kotlinOptions.jvmTarget = "1.8"
+}
+kotlin {
+    experimental {
+        coroutines "enable"
+    }
 }
