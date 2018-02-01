@@ -46,6 +46,7 @@ repositories {
 dependencies {
     compile "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version"
     compile "org.jetbrains.kotlinx:kotlinx-coroutines-core:$kotlin_coroutine_version"
+    compile "org.jetbrains.kotlinx:kotlinx-coroutines-rx2:$kotlin_coroutine_version"
     compile "io.javalin:javalin:$javalin_version"
     compile "com.github.salomonbrys.kodein:kodein:$kodein_version"
     compile "org.slf4j:slf4j-simple:$slf4j_version"

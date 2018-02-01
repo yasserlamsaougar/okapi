@@ -1,37 +1,36 @@
-package org.minicluster.helpers.kafka
+package org.minicluster.helpers.kafka;
 
 import com.github.salomonbrys.kodein.Kodein
 import com.github.salomonbrys.kodein.instance
+import kafka.consumer.SimpleConsumer
 import org.apache.kafka.clients.CommonClientConfigs
-import org.apache.kafka.clients.producer.KafkaProducer
+import org.apache.kafka.clients.consumer.ConsumerConfig
+import org.apache.kafka.clients.consumer.KafkaConsumer
 import org.apache.kafka.clients.producer.ProducerConfig
-import org.apache.kafka.clients.producer.ProducerRecord
-import org.apache.kafka.common.serialization.StringSerializer
+import org.apache.kafka.common.serialization.ByteArrayDeserializer
+import org.apache.kafka.common.serialization.StringDeserializer
 import org.minicluster.helpers.config.ConfigHelper
 import java.util.*
 
-class EasyKafkaProducer(val kodein: Kodein) {
+class SafeKafkaConsumer(val kodein: Kodein) {
 
     private val configHelper: ConfigHelper = kodein.instance()
-    private val kafkaProducer: KafkaProducer<String, String>
+    private val consumerDelay = 500L
     val properties: Properties = Properties()
 
     init {
         with(properties) {
             setProperty(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, configHelper.servicesConfig.kafkaBrokers().joinToString())
-            setProperty(ProducerConfig.RETRIES_CONFIG, "1")
             setProperty(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, "SASL_SSL")
-            setProperty(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer::class.java.canonicalName)
-            setProperty(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer::class.java.canonicalName)
+            setProperty(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer::class.java.canonicalName)
+            setProperty(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, ByteArrayDeserializer::class.java.canonicalName)
+            setProperty(ConsumerConfig.GROUP_ID_CONFIG, "group-${System.currentTimeMillis()}")
+            setProperty(ConsumerConfig.CLIENT_ID_CONFIG, "client-${System.currentTimeMillis()}")
             setProperty("ssl.truststore.location", configHelper.servicesConfig.trustStore().toString())
             setProperty("ssl.truststore.password", configHelper.servicesConfig.trustStorePassword())
         }
-        kafkaProducer = KafkaProducer(properties)
     }
 
-    fun produce(vararg topics: String, message: String) {
-        topics.map {
-            ProducerRecord<String, String>(it, message)
-        }.forEach { kafkaProducer.send(it).get() }
-    }
+
+
 }
