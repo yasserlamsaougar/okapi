@@ -6,9 +6,11 @@ import org.minicluster.helpers.config.ConfigHelper
 import org.minicluster.helpers.env.EnvHelper
 import org.minicluster.helpers.hbase.ConnectionPool
 import org.minicluster.helpers.hbase.HbaseHelper
+import org.minicluster.helpers.hdfs.HdfsHelper
 import org.minicluster.helpers.kafka.EasyKafkaConsumer
 import org.minicluster.helpers.kafka.EasyKafkaProducer
 import org.minicluster.helpers.kafka.KafkaHelper
+import org.minicluster.helpers.kafka.SafeKafkaConsumer
 import org.minicluster.services.KafkaService
 
 
@@ -33,6 +35,9 @@ class Injector {
             HbaseHelper(kodein)
         }
         bind() from singleton {
+            HdfsHelper(kodein)
+        }
+        bind() from singleton {
             ConnectionPool(kodein)
         }
         bind() from singleton {
@@ -40,6 +45,9 @@ class Injector {
         }
         bind () from singleton {
             EasyKafkaConsumer(kodein)
+        }
+        bind () from singleton {
+            SafeKafkaConsumer(kodein)
         }
         constant("globalProperties") with "/main.conf"
         constant("propertiesPrefix") with "main"

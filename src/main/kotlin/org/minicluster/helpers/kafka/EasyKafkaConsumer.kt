@@ -1,4 +1,4 @@
-package org.minicluster.helpers.kafka;
+package org.minicluster.helpers.kafka
 
 import com.github.salomonbrys.kodein.Kodein
 import com.github.salomonbrys.kodein.instance
@@ -14,13 +14,14 @@ import org.apache.kafka.common.serialization.ByteArrayDeserializer
 import org.apache.kafka.common.serialization.StringDeserializer
 import org.minicluster.helpers.config.ConfigHelper
 import java.util.*
+import java.util.concurrent.CopyOnWriteArrayList
 
 class EasyKafkaConsumer(val kodein: Kodein) {
 
     private val configHelper: ConfigHelper = kodein.instance()
-    private val kafkaConsumer: KafkaConsumer<String, String>
     private val consumerDelay = 500L
-    val properties: Properties = Properties()
+    private val properties: Properties = Properties()
+    private val consumers = CopyOnWriteArrayList<KafkaConsumer<String, String>>()
 
     init {
         with(properties) {
@@ -28,25 +29,19 @@ class EasyKafkaConsumer(val kodein: Kodein) {
             setProperty(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, "SASL_SSL")
             setProperty(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer::class.java.canonicalName)
             setProperty(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, ByteArrayDeserializer::class.java.canonicalName)
-            setProperty(ConsumerConfig.GROUP_ID_CONFIG, "group-${System.currentTimeMillis()}")
-            setProperty(ConsumerConfig.CLIENT_ID_CONFIG, "client-${System.currentTimeMillis()}")
             setProperty("ssl.truststore.location", configHelper.servicesConfig.trustStore().toString())
             setProperty("ssl.truststore.password", configHelper.servicesConfig.trustStorePassword())
         }
-        kafkaConsumer = KafkaConsumer(properties)
         Runtime.getRuntime().addShutdownHook(Thread {
-            kafkaConsumer.wakeup()
+            consumers.forEach(KafkaConsumer<String, String>::wakeup)
             Thread.sleep(500)
         })
     }
 
-    fun subscribe(topics: List<String>) {
-        kafkaConsumer.subscribe(topics)
-    }
 
-
-    fun runConsumer(): Flowable<ConsumerRecord<String, String>> {
-        val consumer = kafkaConsumer
+    fun runConsumer(topics: List<String>): Flowable<ConsumerRecord<String, String>> {
+        val consumer = createConsumerAndSubscribe(topics)
+        consumers.add(consumer)
         return rxFlowable {
             try {
                 while (!isClosedForSend && isActive) {
@@ -60,8 +55,16 @@ class EasyKafkaConsumer(val kodein: Kodein) {
             catch (e:WakeupException) {
             }
             finally {
-                kafkaConsumer.close()
+                consumer.close()
             }
         }
+    }
+
+    private fun createConsumerAndSubscribe(topics: List<String>): KafkaConsumer<String, String> {
+        properties.setProperty(ConsumerConfig.GROUP_ID_CONFIG, "group-${topics.joinToString("-")}")
+        properties.setProperty(ConsumerConfig.CLIENT_ID_CONFIG, "client-${System.currentTimeMillis()}")
+        val consumer = KafkaConsumer<String, String>(properties)
+        consumer.subscribe(topics)
+        return consumer
     }
 }

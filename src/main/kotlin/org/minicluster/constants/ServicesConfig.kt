@@ -18,4 +18,6 @@ interface ServicesConfig {
     fun keyTabUser(): String
     fun keyTab(): String
     fun hbasePoolSize(): Int = 1
+
+    fun port(): Int = 7000
 }

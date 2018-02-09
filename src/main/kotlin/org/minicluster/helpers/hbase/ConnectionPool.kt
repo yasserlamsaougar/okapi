@@ -22,7 +22,6 @@ class ConnectionPool(val kodein: Kodein) {
     init {
         hbaseConfiguration.addResource(Path(configHelper.servicesConfig.hbaseSite().toUri()))
         hbaseConfiguration.setInt(HConstants.HBASE_CLIENT_RETRIES_NUMBER, 3)
-        authHelper.setConfiguration(hbaseConfiguration)
         connections = (0 until connectionPoolSize).map {
             createConnection()
         }.toMutableList()
