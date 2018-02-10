@@ -12,7 +12,8 @@ import org.minicluster.helpers.kafka.EasyKafkaConsumer
 import org.minicluster.helpers.kafka.EasyKafkaProducer
 import org.minicluster.helpers.kafka.KafkaHelper
 import org.minicluster.helpers.kafka.SafeKafkaConsumer
-import org.minicluster.services.KafkaService
+import org.minicluster.services.Service
+import org.reflections.Reflections
 
 
 class Injector {
@@ -27,16 +28,10 @@ class Injector {
             KafkaHelper(kodein)
         }
         bind() from singleton {
-            KafkaService(kodein)
-        }
-        bind() from singleton {
             EnvHelper(kodein)
         }
         bind() from singleton {
             HbaseHelper(kodein)
-        }
-        bind() from provider {
-            ScanParser(kodein)
         }
         bind() from singleton {
             HdfsHelper(kodein)
@@ -47,14 +42,27 @@ class Injector {
         bind() from singleton {
             EasyKafkaProducer(kodein)
         }
-        bind () from singleton {
+        bind() from singleton {
             EasyKafkaConsumer(kodein)
         }
-        bind () from singleton {
+        bind() from singleton {
             SafeKafkaConsumer(kodein)
+        }
+        bind() from provider {
+            ScanParser(kodein)
+        }
+        bind<List<Service>>() with singleton {
+            getListOfServices(kodein)
         }
         constant("globalProperties") with "/main.conf"
         constant("propertiesPrefix") with "main"
+    }
+
+    fun getListOfServices(kodein: Kodein) : List<Service> {
+        val reflections = Reflections("org.minicluster.services")
+        return reflections.getSubTypesOf(Service::class.java).map {
+            it.getConstructor(Kodein::class.java).newInstance(kodein)
+        }.requireNoNulls()
     }
 
 }
