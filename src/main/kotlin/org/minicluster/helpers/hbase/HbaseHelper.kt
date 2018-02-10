@@ -12,6 +12,7 @@ import org.apache.hadoop.hbase.client.coprocessor.AggregationClient
 import org.apache.hadoop.hbase.client.coprocessor.LongColumnInterpreter
 import org.apache.hadoop.hbase.coprocessor.AggregateImplementation
 import org.apache.hadoop.hbase.util.Bytes
+import org.minicluster.helpers.hbase.parser.ScanParser
 
 class HbaseHelper(val kodein: Kodein) {
 
@@ -32,13 +33,23 @@ class HbaseHelper(val kodein: Kodein) {
         val tableName = TableName.valueOf(table)
         if (!admin.tableExists(tableName)) {
             val tableDescriptor = HTableDescriptor(tableName)
-            val colFamiliesSplitted = colFamilies.split(";")
+            val colFamiliesSplitted = colFamilies.split(",")
             colFamiliesSplitted.forEach { e ->
                 val familyName = HColumnDescriptor(e)
                 tableDescriptor.addFamily(familyName)
             }
             tableDescriptor.addCoprocessor(AggregateImplementation::class.java.canonicalName)
             admin.createTable(tableDescriptor)
+            return true
+        }
+        return false
+    }
+    fun deleteTable(table: String): Boolean {
+        val admin = connectionPool.getConnection().admin
+        val tableName = TableName.valueOf(table)
+        if (admin.tableExists(tableName)) {
+            admin.disableTable(tableName)
+            admin.deleteTable(tableName)
             return true
         }
         return false
@@ -77,13 +88,17 @@ class HbaseHelper(val kodein: Kodein) {
         return false
     }
 
-    fun scanTable(table: String, limit: Int, vararg colFamilies: String): List<SimpleRow>? {
+    fun scanTable(table: String, limit: Int, vararg colFamilies: String, query: String = ""): List<SimpleRow>? {
         val connection = connectionPool.getConnection()
         val admin = connection.admin
         val tableName = TableName.valueOf(table)
         if (admin.tableExists(tableName)) {
             val hTable = connection.getTable(tableName)
             val scan = createScan(*colFamilies)
+            if(query.trim().isNotEmpty()) {
+                scan.filter = kodein.instance<ScanParser>().parse(query)
+                println(scan.filter)
+            }
             scan.cacheBlocks = false
             val result = mutableListOf<SimpleRow>()
             val scanner = hTable.getScanner(scan)
@@ -108,13 +123,16 @@ class HbaseHelper(val kodein: Kodein) {
         return null
     }
 
-    fun countRows(table: String, vararg colFamilies: String): Long {
+    fun countRows(table: String, vararg colFamilies: String, query: String = ""): Long {
         val connection = connectionPool.getConnection()
         val admin = connection.admin
         val tableName = TableName.valueOf(table)
         if (admin.tableExists(tableName)) {
             val aggregationClient = AggregationClient(connection.configuration)
             val scan = createScan(*colFamilies)
+            if(query.trim().isNotEmpty()) {
+                scan.filter = kodein.instance<ScanParser>().parse(query)
+            }
             var result = aggregationClient.rowCount(tableName, LongColumnInterpreter(), scan)
             aggregationClient.close()
             return result

@@ -6,6 +6,7 @@ import org.minicluster.helpers.config.ConfigHelper
 import org.minicluster.helpers.env.EnvHelper
 import org.minicluster.helpers.hbase.ConnectionPool
 import org.minicluster.helpers.hbase.HbaseHelper
+import org.minicluster.helpers.hbase.parser.ScanParser
 import org.minicluster.helpers.hdfs.HdfsHelper
 import org.minicluster.helpers.kafka.EasyKafkaConsumer
 import org.minicluster.helpers.kafka.EasyKafkaProducer
@@ -33,6 +34,9 @@ class Injector {
         }
         bind() from singleton {
             HbaseHelper(kodein)
+        }
+        bind() from provider {
+            ScanParser(kodein)
         }
         bind() from singleton {
             HdfsHelper(kodein)
