@@ -50,8 +50,8 @@ This project uses the kafka, hbase and hdfs apis to perform the operations on th
 
 1. Add realtime features to kafka and hbase (priority: highest)
 
-1.1 realtime consumer
-1.2 realtime hbase updates (put, delete) 
+1.1. realtime consumer
+1.2. realtime hbase updates (put, delete) 
 
 2. Add detailed report of hdfs,hbase and hdfs cluster (priority: medium)
 
