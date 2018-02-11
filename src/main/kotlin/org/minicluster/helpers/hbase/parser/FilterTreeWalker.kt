@@ -49,6 +49,7 @@ class FilterTreeWalker(private val stack: Stack<FilterList>) : FilterBaseListene
                                 operator,
                                 regexComp
                         )
+                        filter.filterIfMissing = true
                         lastFilterList.addFilter(filter)
                     } else {
                         val realColumnValue = columnName.substring(1).split(":")
@@ -59,7 +60,7 @@ class FilterTreeWalker(private val stack: Stack<FilterList>) : FilterBaseListene
                                 operator,
                                 Bytes.toBytes(value)
                         )
-
+                        filter.filterIfMissing = true
                         lastFilterList.addFilter(filter)
                     }
                 } else if (columnName.startsWith(columnPrefix)) {

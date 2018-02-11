@@ -21,10 +21,21 @@ class KafkaHelper(val kodein: Kodein) {
         return JavaConversions.seqAsJavaList(zkUtils.allTopics)
     }
 
-    fun deleteTopics(vararg topics: String) : List<String>{
+    fun listDetailedTopics(): List<TopicMetadata> {
+        val topics = JavaConversions.asScalaSet(listTopics().toSet())
+        return JavaConversions.asJavaSet(AdminUtils.fetchTopicMetadataFromZk(topics, zkUtils)).map {
+            val partitionsMetadata = it.partitionMetadata()
+                    .map { part ->
+                        PartitionMetadata(part.partition(), part.leader().id(), part.error().message(), part.replicas().size, part.isr().size)
+                    }
+            TopicMetadata(it.topic(), it.error().message(), partitionsMetadata)
+        }
+    }
+
+    fun deleteTopics(vararg topics: String): List<String> {
         val listOfDeleted = mutableListOf<String>()
         topics.forEach { topic ->
-            if(AdminUtils.topicExists(zkUtils, topic)) {
+            if (AdminUtils.topicExists(zkUtils, topic)) {
                 zkUtils.deletePathRecursive(ZkUtils.getTopicPath(topic))
                 listOfDeleted.add(topic)
             }
@@ -32,15 +43,17 @@ class KafkaHelper(val kodein: Kodein) {
         return listOfDeleted
     }
 
-    fun createTopics(vararg topics: String) : List<String> {
+    fun createTopics(vararg topics: String, partitions: Int = 1, replicationFactor: Int = 1): List<String> {
         val listOfCreated = mutableListOf<String>()
         topics.forEach { topic ->
-            if(!AdminUtils.topicExists(zkUtils, topic)) {
-                AdminUtils.createTopic(zkUtils, topic, 1, 1, Properties(), RackAwareMode.`Enforced$`.`MODULE$`)
+            if (!AdminUtils.topicExists(zkUtils, topic)) {
+                AdminUtils.createTopic(zkUtils, topic, partitions, replicationFactor, Properties(), RackAwareMode.`Enforced$`.`MODULE$`)
                 listOfCreated.add(topic)
             }
         }
         return listOfCreated
     }
 
+    data class TopicMetadata(val name: String, val errors: String, val partitions: List<PartitionMetadata>)
+    data class PartitionMetadata(val index: Int, val leaderNode: Int, val errors: String, val replicas: Int, val isr: Int)
 }

@@ -1,16 +1,22 @@
 import com.github.salomonbrys.kodein.instance
 import org.minicluster.Injector
 import org.minicluster.helpers.kafka.EasyKafkaProducer
+import java.util.*
 
 fun main(args: Array<String>) {
 
     val injector = Injector()
     val easyKafkaProducer = injector.kodein.instance<EasyKafkaProducer>()
 
-    easyKafkaProducer.produce("t1", message = "This is a test message")
-    easyKafkaProducer.produce("t2", message = "This is a test message")
-    easyKafkaProducer.produce("t3", message = "This is a test message")
-    easyKafkaProducer.produce("t4", message = "This is a test message")
-    easyKafkaProducer.produce("t5", message = "This is a test message")
+    val random = Random()
+    (0 until 1000000).forEach{
+        if(random.nextBoolean()) {
+
+            easyKafkaProducer.produce("test", message = "This is a true message")
+        }
+        else {
+            easyKafkaProducer.produce("test", message = "This is a false message")
+        }
+    }
 
 }

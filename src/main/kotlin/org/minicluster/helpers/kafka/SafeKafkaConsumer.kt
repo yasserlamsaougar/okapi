@@ -16,7 +16,8 @@ import java.util.*
 class SafeKafkaConsumer(val kodein: Kodein) {
 
     private val configHelper: ConfigHelper = kodein.instance()
-    val properties: Properties = Properties()
+    private val properties: Properties = Properties()
+    private val consumers: MutableList<Consumer> = mutableListOf()
 
     init {
         with(properties) {
@@ -29,54 +30,37 @@ class SafeKafkaConsumer(val kodein: Kodein) {
             setProperty("ssl.truststore.location", configHelper.servicesConfig.trustStore().toString())
             setProperty("ssl.truststore.password", configHelper.servicesConfig.trustStorePassword())
         }
-    }
-
-    fun getFirstOffsets(topic: String, consumer: KafkaConsumer<String, String> = createConsumer()): Map<TopicPartition, Long> {
-        consumer.use { c ->
-            val partitions = c.partitionsFor(topic).map {
-                TopicPartition(it.topic(), it.partition())
-            }
-            return c.beginningOffsets(partitions)
+        (0 until 9).forEach {
+            consumers.add(Consumer(false, createConsumer()))
         }
     }
 
-    fun getEndOffsets(topic: String, consumer: KafkaConsumer<String, String> = createConsumer()): Map<TopicPartition, Long> {
-        consumer.use { c ->
-            val partitions = c.partitionsFor(topic).map {
-                TopicPartition(it.topic(), it.partition())
-            }
-            return c.endOffsets(partitions)
+    fun findInMessages(topic: String, partition: Int, startOffset: Long, endOffset: Long = Long.MAX_VALUE, filter: (ConsumerRecord<String, String>) -> Boolean = { true }): List<ConsumerRecord<String, String>> {
+        val consumer: Consumer = getConsumer()
+        val c = consumer.kafkaConsumer
+        val partitionAsList = listOf(c.partitionsFor(topic).map {
+            TopicPartition(it.topic(), it.partition())
+        }[partition])
+        c.assign(partitionAsList)
+        val validEndOffset = c.endOffsets(partitionAsList).values.map {
+            Math.min(endOffset, it)
+        }[partition]
+        val beginningOffset = c.beginningOffsets(partitionAsList).values.map { v ->
+            Math.min(startOffset + v, validEndOffset)
+        }[partition]
+        partitionAsList.forEach { p ->
+            c.seek(p, beginningOffset)
         }
-    }
-
-    fun getMessagesBetween(topic: String, partition: Int, startOffset: Long, endOffset: Long = Long.MAX_VALUE): List<ConsumerRecord<String, String>> {
-        createConsumer().use { c ->
-            val partitionAsList = listOf(c.partitionsFor(topic).map {
-                TopicPartition(it.topic(), it.partition())
-            }[partition])
-            c.assign(partitionAsList)
-            val endOffset = c.endOffsets(partitionAsList).values.map {
-                Math.min(endOffset, it)
-            }[partition]
-            val beginningOffset = c.beginningOffsets(partitionAsList).values.map { v ->
-                Math.min(startOffset + v, endOffset)
-            }[partition]
-            partitionAsList.forEach { p ->
-                c.seek(p, beginningOffset)
-            }
-            val results = mutableListOf<ConsumerRecord<String, String>>()
-            val maxResults = endOffset - beginningOffset
-            while (results.size < (endOffset - beginningOffset)) {
-                val records = c.poll(50)
-                results.addAll(records)
-            }
-            return results.take(maxResults.toInt())
+        var currentSize = 0
+        val results = mutableListOf<ConsumerRecord<String, String>>()
+        val maxResults = validEndOffset - beginningOffset
+        while (currentSize < (validEndOffset - beginningOffset)) {
+            val records = c.poll(200)
+            results.addAll(records.filter(filter))
+            currentSize += records.count()
         }
-
-    }
-
-    fun findInMessages(topic: String, partition: Int, startOffset: Long, endOffset: Long = Long.MAX_VALUE, filter: (ConsumerRecord<String, String>) -> Boolean): List<ConsumerRecord<String, String>> {
-        return getMessagesBetween(topic, partition, startOffset, endOffset).filter(filter)
+        consumer.used = false
+        return results.take(maxResults.toInt())
     }
 
     private fun createConsumer(): KafkaConsumer<String, String> {
@@ -84,5 +68,17 @@ class SafeKafkaConsumer(val kodein: Kodein) {
         properties.setProperty(ConsumerConfig.CLIENT_ID_CONFIG, "client-${System.currentTimeMillis()}")
         return KafkaConsumer(properties)
     }
+
+
+    @Synchronized
+    private fun getConsumer(): Consumer {
+        val firstNotUsed = consumers.find {
+            !it.used
+        } ?: Consumer(true, createConsumer())
+        firstNotUsed.used = true
+        return firstNotUsed
+    }
+
+    data class Consumer(var used: Boolean, val kafkaConsumer: KafkaConsumer<String, String>)
 
 }

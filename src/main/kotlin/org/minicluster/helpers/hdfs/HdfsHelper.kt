@@ -39,6 +39,11 @@ class HdfsHelper(val kodein: Kodein) {
         return listOfFiles
     }
 
+    fun deletePath(path: String, recursive: Boolean = false) {
+        authHelper.authenticate()
+        fs.delete(Path(path), recursive)
+    }
+
     fun writeFile(inputFile: String, dest: String, overwrite: Boolean = true): Boolean {
         authHelper.authenticate()
         if(overwrite) {
@@ -58,12 +63,22 @@ class HdfsHelper(val kodein: Kodein) {
         return fs.open(Path(inputFile))
     }
 
-    fun writeStream(inputStream: InputStream, dest: String, overwite: Boolean = true) : Long {
+    fun writeStream(inputStream: InputStream, dest: String, overwrite: Boolean = true) : Long {
         authHelper.authenticate()
-        val file = fs.create(Path(dest), overwite)
+        val file = fs.create(Path(dest), overwrite)
         val bytesWritten = inputStream.copyTo(file)
         file.close()
         return bytesWritten
+    }
+
+    fun fileExists(inputFile: String) : Boolean {
+        authHelper.authenticate()
+        return fs.exists(Path(inputFile))
+    }
+
+    fun isSimpleFile(inputFile: String) : Boolean{
+        authHelper.authenticate()
+        return fs.isFile(Path(inputFile))
     }
 
 }

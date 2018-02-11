@@ -2,7 +2,6 @@ package org.minicluster.helpers.hbase
 
 import com.github.salomonbrys.kodein.Kodein
 import com.github.salomonbrys.kodein.instance
-import com.github.salomonbrys.kodein.lazy
 import org.apache.hadoop.hbase.HColumnDescriptor
 import org.apache.hadoop.hbase.HTableDescriptor
 import org.apache.hadoop.hbase.NamespaceDescriptor
@@ -16,7 +15,7 @@ import org.minicluster.helpers.hbase.parser.ScanParser
 
 class HbaseHelper(val kodein: Kodein) {
 
-    val connectionPool: ConnectionPool by kodein.lazy.instance()
+    private val connectionPool: ConnectionPool = kodein.instance()
 
     fun createNamespace(namespace: String): Boolean {
         val admin = connectionPool.getConnection().admin
@@ -44,6 +43,7 @@ class HbaseHelper(val kodein: Kodein) {
         }
         return false
     }
+
     fun deleteTable(table: String): Boolean {
         val admin = connectionPool.getConnection().admin
         val tableName = TableName.valueOf(table)
@@ -60,7 +60,7 @@ class HbaseHelper(val kodein: Kodein) {
         val tableName = TableName.valueOf(table)
         if (admin.tableExists(tableName)) {
             val hTable = connectionPool.getConnection().getTable(tableName)
-            val puts = data.map {(rowId, value)->
+            val puts = data.map { (rowId, value) ->
                 val put = Put(rowId.bytes())
                 value.forEach { (k, v) ->
                     val keySplitted = k.split(":")
@@ -95,9 +95,8 @@ class HbaseHelper(val kodein: Kodein) {
         if (admin.tableExists(tableName)) {
             val hTable = connection.getTable(tableName)
             val scan = createScan(*colFamilies)
-            if(query.trim().isNotEmpty()) {
+            if (query.trim().isNotEmpty()) {
                 scan.filter = kodein.instance<ScanParser>().parse(query)
-                println(scan.filter)
             }
             scan.cacheBlocks = false
             val result = mutableListOf<SimpleRow>()
@@ -110,13 +109,15 @@ class HbaseHelper(val kodein: Kodein) {
         return null
     }
 
-    fun getRows(table: String, vararg rowIds: String) : List<SimpleRow>?{
+    fun getRows(table: String, vararg rowIds: String): List<SimpleRow>? {
         val connection = connectionPool.getConnection()
         val admin = connection.admin
         val tableName = TableName.valueOf(table)
         if (admin.tableExists(tableName)) {
             val hTable = connection.getTable(tableName)
-            val result = hTable.get(rowIds.map { Get(it.bytes()) }).map{createRow(table, it)}
+            val result = hTable.get(rowIds.map { Get(it.bytes()) })
+                    .filter { !it.isEmpty }
+                    .map { createRow(table, it) }
             hTable.close()
             return result
         }
@@ -130,14 +131,22 @@ class HbaseHelper(val kodein: Kodein) {
         if (admin.tableExists(tableName)) {
             val aggregationClient = AggregationClient(connection.configuration)
             val scan = createScan(*colFamilies)
-            if(query.trim().isNotEmpty()) {
+            if (query.trim().isNotEmpty()) {
                 scan.filter = kodein.instance<ScanParser>().parse(query)
             }
-            var result = aggregationClient.rowCount(tableName, LongColumnInterpreter(), scan)
+            val result = aggregationClient.rowCount(tableName, LongColumnInterpreter(), scan)
             aggregationClient.close()
             return result
         }
         return -1L
+    }
+
+    fun listTables(): List<String> {
+        val connection = connectionPool.getConnection()
+        val admin = connection.admin
+        return admin.listTableNames().map {
+            it.nameWithNamespaceInclAsString
+        }
     }
 
 
@@ -149,12 +158,13 @@ class HbaseHelper(val kodein: Kodein) {
 
     private fun createRow(table: String, result: Result): SimpleRow {
         val rowId = result.row.toS()
-        val columnsByFamily = result.noVersionMap.entries.associate { (family, familyColumns) ->
-            val family = family.toS()
+        val columnsByFamily = result.map.entries.associate { (family, familyColumns) ->
+            val familyAsString = family.toS()
             val columns = familyColumns.map { (qualifier, value) ->
-                SimpleColumn(family, qualifier = qualifier.toS(), value = value.toS())
+                val mappedSortedValues = value.mapValues { it.value.toS() }
+                SimpleColumn(familyAsString, qualifier = qualifier.toS(), lastValue = value.firstEntry().value.toS(), versions = mappedSortedValues)
             }
-            family to columns
+            familyAsString to columns
         }
         return SimpleRow(table, rowId, columnsByFamily)
     }
@@ -168,6 +178,6 @@ class HbaseHelper(val kodein: Kodein) {
         return Bytes.toString(this)
     }
 
-    data class SimpleColumn(val family: String, val qualifier: String, val value: String)
+    data class SimpleColumn(val family: String, val qualifier: String, val lastValue: String, val versions: Map<Long, String>)
     data class SimpleRow(val tableName: String, val rowId: String, val columns: Map<String, List<SimpleColumn>>)
 }

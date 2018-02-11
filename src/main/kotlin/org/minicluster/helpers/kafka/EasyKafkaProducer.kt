@@ -29,9 +29,9 @@ class EasyKafkaProducer(val kodein: Kodein) {
         kafkaProducer = KafkaProducer(properties)
     }
 
-    fun produce(vararg topics: String, message: String) {
+    fun produce(vararg topics: String, key: String? = null, message: String) {
         topics.map {
-            ProducerRecord<String, String>(it, message)
+            ProducerRecord<String, String>(it, key, message)
         }.forEach { kafkaProducer.send(it).get() }
     }
 }
