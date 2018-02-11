@@ -3,7 +3,7 @@
 ## Introduction ##
 This project contains a set of rest services (and soon websockets) to allow anyone with sufficient access to perform operations on hbase, kafka and hdfs. 
 
-## Tools Used ## 
+## Tools Used ##
 This project uses the kafka, hbase and hdfs apis to perform the operations on the cluster. It also uses javalin extensively to create the rest services
 
 ### List of tools ###
