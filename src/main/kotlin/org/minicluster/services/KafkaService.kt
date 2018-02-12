@@ -68,7 +68,9 @@ class KafkaService(val kodein: Kodein) : Service {
         val partition = ctx.queryParam("partition")?.toInt()!!
         val from = ctx.queryParamOrDefault("from", "0").toLong()
         val to = ctx.queryParamOrDefault("to", Long.MAX_VALUE.toString()).toLong()
-        val records = safeKafkaConsumer.findInMessages(topic = name, partition = partition, startOffset = from, endOffset = to)
+        val records = safeKafkaConsumer.findInMessages(topic = name, partition = partition, startOffset = from, endOffset = to) {
+            true
+        }
                 .map {
                     Record(it.topic(), it.partition(), it.key().orEmpty(), it.value(), it.offset())
                 }
@@ -92,11 +94,12 @@ class KafkaService(val kodein: Kodein) : Service {
 
     fun sendMessage(ctx: Context) {
         val name = ctx.param("name").orEmpty()
-        val message= ctx.bodyAsClass(Message::class.java)
+        val message = ctx.bodyAsClass(Message::class.java)
         easyKafkaProducer.produce(name, key = message.key, message = JavalinJacksonPlugin.toJson(message.text))
         ctx.status(HttpStatus.SC_OK)
 
     }
+
     data class Message(val key: String? = null, val text: Any)
     data class Topic(val name: String, val partitions: Int, val replicationFactor: Int)
     data class Record(val topic: String, val partition: Int, val key: String, val message: String, val offset: Long)

@@ -16,6 +16,7 @@ class App(val kodein: Kodein) {
         JavalinJacksonPlugin.configure(mapper)
         val port = configHelper.servicesConfig.port()
         val app = Javalin.create()
+                .enableDynamicGzip()
                 .port(port).start()
         listOfServices.forEach {
             it.setup(app)

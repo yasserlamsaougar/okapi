@@ -35,7 +35,7 @@ class SafeKafkaConsumer(val kodein: Kodein) {
         }
     }
 
-    fun findInMessages(topic: String, partition: Int, startOffset: Long, endOffset: Long = Long.MAX_VALUE, filter: (ConsumerRecord<String, String>) -> Boolean = { true }): List<ConsumerRecord<String, String>> {
+    fun findInMessages(topic: String, partition: Int, startOffset: Long, endOffset: Long = Long.MAX_VALUE, filter: (ConsumerRecord<String, String>) -> Boolean): List<ConsumerRecord<String, String>> {
         val consumer: Consumer = getConsumer()
         val c = consumer.kafkaConsumer
         val partitionAsList = listOf(c.partitionsFor(topic).map {
@@ -60,7 +60,7 @@ class SafeKafkaConsumer(val kodein: Kodein) {
             currentSize += records.count()
         }
         consumer.used = false
-        return results.take(maxResults.toInt())
+        return results.take(Math.min(maxResults.toInt(), results.size))
     }
 
     private fun createConsumer(): KafkaConsumer<String, String> {
