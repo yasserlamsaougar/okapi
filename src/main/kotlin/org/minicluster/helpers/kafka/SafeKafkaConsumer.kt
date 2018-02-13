@@ -30,7 +30,7 @@ class SafeKafkaConsumer(val kodein: Kodein) {
             setProperty("ssl.truststore.location", configHelper.servicesConfig.trustStore().toString())
             setProperty("ssl.truststore.password", configHelper.servicesConfig.trustStorePassword())
         }
-        (0 until 9).forEach {
+        (0 until configHelper.servicesConfig.consumerPoolSize()).forEach {
             consumers.add(Consumer(false, createConsumer()))
         }
     }
@@ -40,14 +40,14 @@ class SafeKafkaConsumer(val kodein: Kodein) {
         val c = consumer.kafkaConsumer
         val partitionAsList = listOf(c.partitionsFor(topic).map {
             TopicPartition(it.topic(), it.partition())
-        }[partition])
+        }.sortedBy { it.partition() }[partition])
         c.assign(partitionAsList)
         val validEndOffset = c.endOffsets(partitionAsList).values.map {
             Math.min(endOffset, it)
-        }[partition]
+        }.first()
         val beginningOffset = c.beginningOffsets(partitionAsList).values.map { v ->
             Math.min(startOffset + v, validEndOffset)
-        }[partition]
+        }.first()
         partitionAsList.forEach { p ->
             c.seek(p, beginningOffset)
         }

@@ -2,10 +2,7 @@ package org.minicluster.helpers.hbase
 
 import com.github.salomonbrys.kodein.Kodein
 import com.github.salomonbrys.kodein.instance
-import org.apache.hadoop.hbase.HColumnDescriptor
-import org.apache.hadoop.hbase.HTableDescriptor
-import org.apache.hadoop.hbase.NamespaceDescriptor
-import org.apache.hadoop.hbase.TableName
+import org.apache.hadoop.hbase.*
 import org.apache.hadoop.hbase.client.*
 import org.apache.hadoop.hbase.client.coprocessor.AggregationClient
 import org.apache.hadoop.hbase.client.coprocessor.LongColumnInterpreter
@@ -109,6 +106,39 @@ class HbaseHelper(val kodein: Kodein) {
         return null
     }
 
+    fun scanTable(table: String, startRow: ByteArray, endRow: ByteArray, limit: Int, vararg colFamilies: String, query: String = ""): List<SimpleRow>? {
+        val connection = connectionPool.getConnection()
+        val tableName = TableName.valueOf(table)
+        val hTable = connection.getTable(tableName)
+        val scan = createScan(startRow, endRow, *colFamilies)
+        if (query.trim().isNotEmpty()) {
+            scan.filter = kodein.instance<ScanParser>().parse(query)
+        }
+        scan.cacheBlocks = false
+        val result = mutableListOf<SimpleRow>()
+        val scanner = hTable.getScanner(scan)
+        scanner.take(limit).mapTo(result) { createRow(table = table, result = it) }
+        scanner.close()
+        hTable.close()
+        return result
+    }
+
+    fun tableExists(table: String) : Boolean{
+        val connection = connectionPool.getConnection()
+        val tableName = TableName.valueOf(table)
+        return connection.admin.tableExists(tableName)
+    }
+
+    fun getRegions(table: String): List<HRegionInfo>? {
+        val connection = connectionPool.getConnection()
+        val admin = connection.admin
+        val tableName = TableName.valueOf(table)
+        if (admin.tableExists(tableName)) {
+            return admin.getTableRegions(tableName)
+        }
+        return null
+    }
+
     fun getRows(table: String, vararg rowIds: String): List<SimpleRow>? {
         val connection = connectionPool.getConnection()
         val admin = connection.admin
@@ -152,6 +182,12 @@ class HbaseHelper(val kodein: Kodein) {
 
     private fun createScan(vararg colFamilies: String): Scan {
         val scan = Scan()
+        colFamilies.forEach { scan.addFamily(it.bytes()) }
+        return scan
+    }
+
+    private fun createScan(startRow: ByteArray, endRow: ByteArray, vararg colFamilies: String): Scan {
+        val scan = Scan(startRow, endRow)
         colFamilies.forEach { scan.addFamily(it.bytes()) }
         return scan
     }

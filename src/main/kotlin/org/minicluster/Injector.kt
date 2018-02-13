@@ -13,6 +13,8 @@ import org.minicluster.helpers.kafka.EasyKafkaProducer
 import org.minicluster.helpers.kafka.KafkaHelper
 import org.minicluster.helpers.kafka.SafeKafkaConsumer
 import org.minicluster.services.Service
+import org.minicluster.splitters.SimpleSplitter
+import org.minicluster.splitters.Splitter
 import org.reflections.Reflections
 
 
@@ -53,6 +55,9 @@ class Injector {
         }
         bind<List<Service>>() with singleton {
             getListOfServices(kodein)
+        }
+        bind<Splitter>() with singleton {
+            SimpleSplitter()
         }
         constant("globalProperties") with "/main.conf"
         constant("propertiesPrefix") with "main"

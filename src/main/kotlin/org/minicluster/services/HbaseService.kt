@@ -7,11 +7,14 @@ import io.javalin.Context
 import io.javalin.Javalin
 import org.apache.http.HttpStatus
 import org.minicluster.helpers.hbase.HbaseHelper
+import org.minicluster.splitters.Splitter
+import org.minicluster.splitters.tasks.HbaseSplittableTask
 
 
 class HbaseService(val kodein: Kodein) : Service {
 
     private val hbaseHelper: HbaseHelper = kodein.instance()
+    private val splitter: Splitter = kodein.instance()
     private val defaultLimit = 10
 
     override fun setup(app: Javalin) {
@@ -86,8 +89,7 @@ class HbaseService(val kodein: Kodein) : Service {
         val deleted = hbaseHelper.deleteRows(getTableName(namespace, name), *ids)
         if (deleted) {
             ctx.status(HttpStatus.SC_OK)
-        }
-        else {
+        } else {
             ctx.status(HttpStatus.SC_NOT_FOUND)
             ctx.json(mapOf(
                     "message" to "table $namespace:$name doesn't exist"
@@ -95,22 +97,34 @@ class HbaseService(val kodein: Kodein) : Service {
         }
     }
 
-
     fun scanTable(ctx: Context) {
         val namespace = ctx.param("namespace") ?: "default"
         val name = ctx.param("name")
         val query = ctx.queryParam("query").orEmpty()
         val cfs = ctx.queryParams("cf").orEmpty()
         val limit = ctx.queryParam("limit")?.toInt() ?: defaultLimit
-        val results = hbaseHelper.scanTable(table = getTableName(namespace, name), limit = limit, colFamilies = *cfs, query = query)
-        if (results == null) {
+        val hbaseSplittableTask: Map<String, Any?> = mapOf(
+                "name" to name,
+                "namespace" to namespace
+        )
+        if (hbaseHelper.tableExists(table = getTableName(namespace, name))) {
+            val results: List<HbaseHelper.SimpleRow> = splitter.split(HbaseSplittableTask(hbaseSplittableTask, kodein)) {
+                val startKey = it.arguments["startKey"] as ByteArray
+                val endKey = it.arguments["endKey"] as ByteArray
+                hbaseHelper.scanTable(table = getTableName(namespace, name), startRow = startKey, endRow = endKey, limit = limit, colFamilies = *cfs, query = query)!!
+            }
+            ctx.json(mapOf(
+                    "count" to results.size,
+                    "rows" to results
+            ))
+        } else {
             ctx.status(HttpStatus.SC_NOT_FOUND)
             ctx.json(mapOf(
                     "message" to "table $namespace:$name doesn't exist"
             ))
-        } else {
-            ctx.json(results)
         }
+
+
     }
 
     fun countTable(ctx: Context) {
@@ -152,13 +166,12 @@ class HbaseService(val kodein: Kodein) : Service {
     fun putData(ctx: Context) {
         val data = ctx.bodyAsClass(HData::class.java)
         val added = hbaseHelper.addRows(getTableName(data.namespace, data.name), data.rows)
-        if(added) {
+        if (added) {
             ctx.status(HttpStatus.SC_OK)
             ctx.json(mapOf(
                     "message" to "added or updated ${data.rows.size} rows"
             ))
-        }
-        else {
+        } else {
             ctx.status(HttpStatus.SC_NOT_FOUND)
             ctx.json(mapOf(
                     "message" to "table ${data.namespace}:${data.name} doesn't exist"

@@ -10,12 +10,16 @@ import org.apache.http.HttpStatus
 import org.minicluster.helpers.kafka.EasyKafkaProducer
 import org.minicluster.helpers.kafka.KafkaHelper
 import org.minicluster.helpers.kafka.SafeKafkaConsumer
+import org.minicluster.splitters.Splitter
+import org.minicluster.splitters.tasks.KafkaSplittableTask
 
 class KafkaService(val kodein: Kodein) : Service {
 
     private val kafkaHelper: KafkaHelper = kodein.instance()
     private val safeKafkaConsumer: SafeKafkaConsumer = kodein.instance()
     private val easyKafkaProducer: EasyKafkaProducer = kodein.instance()
+    private val splitter: Splitter = kodein.instance()
+
     override fun setup(app: Javalin) {
         app.routes {
             path("kafka") {
@@ -68,28 +72,47 @@ class KafkaService(val kodein: Kodein) : Service {
         val partition = ctx.queryParam("partition")?.toInt()!!
         val from = ctx.queryParamOrDefault("from", "0").toLong()
         val to = ctx.queryParamOrDefault("to", Long.MAX_VALUE.toString()).toLong()
-        val records = safeKafkaConsumer.findInMessages(topic = name, partition = partition, startOffset = from, endOffset = to) {
-            true
+        val kafkaSplittableTask = KafkaSplittableTask(mapOf(
+                "from" to from,
+                "to" to to
+        ), kodein)
+        val records = splitter.split(kafkaSplittableTask) {
+            val splitFrom = it.arguments["from"] as Long
+            val splitTo = it.arguments["to"] as Long
+            safeKafkaConsumer.findInMessages(topic = name, partition = partition, startOffset = splitFrom, endOffset = splitTo) { true }.map {
+                Record(it.topic(), it.partition(), it.key().orEmpty(), it.value(), it.offset())
+            }
         }
-                .map {
-                    Record(it.topic(), it.partition(), it.key().orEmpty(), it.value(), it.offset())
-                }
-        ctx.json(records)
+        ctx.json(mapOf(
+                "count" to records.size,
+                "messages" to records
+        ))
     }
 
     fun searchTopic(ctx: Context) {
         val name = ctx.param("name").orEmpty()
         val partition = ctx.queryParam("partition")?.toInt()!!
         val from = ctx.queryParamOrDefault("from", "0").toLong()
-        val to = ctx.queryParamOrDefault("to", Long.MAX_VALUE.toString()).toLong()
+        val to = ctx.queryParamOrDefault("to", Int.MAX_VALUE.toString()).toLong()
         val keyword = ctx.queryParam("query").orEmpty()
-        val records = safeKafkaConsumer.findInMessages(topic = name, partition = partition, startOffset = from, endOffset = to)
-        {
-            it.value().contains(keyword)
-        }.map {
-                    Record(it.topic(), it.partition(), it.key().orEmpty(), it.value(), it.offset())
-                }
-        ctx.json(records)
+        val kafkaSplittableTask = KafkaSplittableTask(mapOf(
+                "from" to from,
+                "to" to to
+        ), kodein)
+        val records = splitter.split(kafkaSplittableTask) {
+            val splitFrom = it.arguments["from"] as Long
+            val splitTo = it.arguments["to"] as Long
+            safeKafkaConsumer.findInMessages(topic = name, partition = partition, startOffset = splitFrom, endOffset = splitTo)
+            {
+                it.value().contains(keyword)
+            }.map {
+                        Record(it.topic(), it.partition(), it.key().orEmpty(), it.value(), it.offset())
+                    }
+        }
+        ctx.json(mapOf(
+                "count" to records.size,
+                "messages" to records
+        ))
     }
 
     fun sendMessage(ctx: Context) {
