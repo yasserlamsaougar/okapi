@@ -101,6 +101,7 @@ class HbaseService(val kodein: Kodein) : Service {
         val namespace = ctx.param("namespace") ?: "default"
         val name = ctx.param("name")
         val query = ctx.queryParam("query").orEmpty()
+        val maxVersions = ctx.queryParamOrDefault("versions", "1").toInt()
         val cfs = ctx.queryParams("cf").orEmpty()
         val limit = ctx.queryParam("limit")?.toInt() ?: defaultLimit
         val hbaseSplittableTask: Map<String, Any?> = mapOf(

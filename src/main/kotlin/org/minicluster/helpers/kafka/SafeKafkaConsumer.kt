@@ -8,7 +8,6 @@ import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.consumer.KafkaConsumer
 import org.apache.kafka.clients.producer.ProducerConfig
 import org.apache.kafka.common.TopicPartition
-import org.apache.kafka.common.serialization.ByteArrayDeserializer
 import org.apache.kafka.common.serialization.StringDeserializer
 import org.minicluster.helpers.config.ConfigHelper
 import java.util.*
@@ -24,7 +23,7 @@ class SafeKafkaConsumer(val kodein: Kodein) {
             setProperty(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, configHelper.servicesConfig.kafkaBrokers().joinToString())
             setProperty(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, "SASL_SSL")
             setProperty(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer::class.java.canonicalName)
-            setProperty(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, ByteArrayDeserializer::class.java.canonicalName)
+            setProperty(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer::class.java.canonicalName)
             setProperty(ConsumerConfig.GROUP_ID_CONFIG, "group-${System.currentTimeMillis()}")
             setProperty(ConsumerConfig.CLIENT_ID_CONFIG, "client-${System.currentTimeMillis()}")
             setProperty("ssl.truststore.location", configHelper.servicesConfig.trustStore().toString())
@@ -42,15 +41,19 @@ class SafeKafkaConsumer(val kodein: Kodein) {
             TopicPartition(it.topic(), it.partition())
         }.sortedBy { it.partition() }[partition])
         c.assign(partitionAsList)
-        val validEndOffset = c.endOffsets(partitionAsList).values.map {
-            Math.min(endOffset, it)
+        c.seekToEnd(partitionAsList)
+        var validEndOffset = partitionAsList.map {
+            c.position(it)
         }.first()
-        val beginningOffset = c.beginningOffsets(partitionAsList).values.map { v ->
-            Math.min(startOffset + v, validEndOffset)
+        c.seekToBeginning(partitionAsList)
+        val beginningOffset = partitionAsList.map { v ->
+            val currentPos = c.position(v)
+            Math.min(startOffset + currentPos, validEndOffset)
         }.first()
         partitionAsList.forEach { p ->
             c.seek(p, beginningOffset)
         }
+        validEndOffset = Math.min(beginningOffset + endOffset, validEndOffset)
         var currentSize = 0
         val results = mutableListOf<ConsumerRecord<String, String>>()
         val maxResults = validEndOffset - beginningOffset

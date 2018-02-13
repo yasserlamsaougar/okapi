@@ -54,8 +54,6 @@ This project uses the kafka, hbase and hdfs apis to perform the operations on th
 	
 2. Add detailed report of hdfs,hbase and hdfs cluster (priority: medium)
 
-3. Add support for hive cluster (priority: low)
-
 4. Add support for spark and yarn or mesos (priority: medium)
 
 5. Add support for cassandra (priority: low)

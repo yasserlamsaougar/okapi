@@ -16,6 +16,7 @@ import org.minicluster.services.Service
 import org.minicluster.splitters.SimpleSplitter
 import org.minicluster.splitters.Splitter
 import org.reflections.Reflections
+import java.util.stream.Collectors
 
 
 class Injector {
@@ -60,14 +61,14 @@ class Injector {
             SimpleSplitter()
         }
         constant("globalProperties") with "/main.conf"
-        constant("propertiesPrefix") with "main"
+        constant("propertiesPrefix") with "datalab"
     }
 
     fun getListOfServices(kodein: Kodein) : List<Service> {
         val reflections = Reflections("org.minicluster.services")
-        return reflections.getSubTypesOf(Service::class.java).map {
+        return reflections.getSubTypesOf(Service::class.java).parallelStream().map {
             it.getConstructor(Kodein::class.java).newInstance(kodein)
-        }.requireNoNulls()
+        }.collect(Collectors.toList()).requireNoNulls()
     }
 
 }

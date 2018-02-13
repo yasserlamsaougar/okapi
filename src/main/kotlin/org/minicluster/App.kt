@@ -18,7 +18,7 @@ class App(val kodein: Kodein) {
         val app = Javalin.create()
                 .enableDynamicGzip()
                 .port(port).start()
-        listOfServices.forEach {
+        listOfServices.forEach{
             it.setup(app)
         }
     }

@@ -85,13 +85,13 @@ class HbaseHelper(val kodein: Kodein) {
         return false
     }
 
-    fun scanTable(table: String, limit: Int, vararg colFamilies: String, query: String = ""): List<SimpleRow>? {
+    fun scanTable(table: String, limit: Int, vararg colFamilies: String, query: String = "", maxVersions: Int = 1): List<SimpleRow>? {
         val connection = connectionPool.getConnection()
         val admin = connection.admin
         val tableName = TableName.valueOf(table)
         if (admin.tableExists(tableName)) {
             val hTable = connection.getTable(tableName)
-            val scan = createScan(*colFamilies)
+            val scan = createScan(*colFamilies, maxVersions = maxVersions)
             if (query.trim().isNotEmpty()) {
                 scan.filter = kodein.instance<ScanParser>().parse(query)
             }
@@ -180,8 +180,9 @@ class HbaseHelper(val kodein: Kodein) {
     }
 
 
-    private fun createScan(vararg colFamilies: String): Scan {
+    private fun createScan(vararg colFamilies: String, maxVersions:Int = 1): Scan {
         val scan = Scan()
+        scan.maxVersions = maxVersions
         colFamilies.forEach { scan.addFamily(it.bytes()) }
         return scan
     }
