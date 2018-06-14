@@ -32,6 +32,9 @@ class KafkaService(val kodein: Kodein) : Service {
                         path("_search") {
                             get(this::searchTopic)
                         }
+                        path("_count") {
+                            get(this::countTopicMessages)
+                        }
                         post(this::sendMessage)
                     }
                 }
@@ -54,6 +57,13 @@ class KafkaService(val kodein: Kodein) : Service {
         ctx.json(kafkaHelper.listDetailedTopics())
     }
 
+    fun countTopicMessages(ctx: Context) {
+        val name = ctx.param("name").orEmpty()
+        ctx.json(mapOf(
+                "count" to safeKafkaConsumer.countTopicSize(name)
+        ))
+    }
+
     fun deleteTopic(ctx: Context) {
         val topic = ctx.param(":name")
         val deleted = kafkaHelper.deleteTopics(topic!!)
@@ -69,16 +79,17 @@ class KafkaService(val kodein: Kodein) : Service {
 
     fun readTopic(ctx: Context) {
         val name = ctx.param("name").orEmpty()
-        val partition = ctx.queryParam("partition")?.toInt()!!
         val from = ctx.queryParamOrDefault("from", "0").toLong()
         val to = ctx.queryParamOrDefault("to", Long.MAX_VALUE.toString()).toLong()
         val kafkaSplittableTask = KafkaSplittableTask(mapOf(
                 "from" to from,
-                "to" to to
+                "to" to to,
+                "topic" to name
         ), kodein)
         val records = splitter.split(kafkaSplittableTask) {
             val splitFrom = it.arguments["from"] as Long
             val splitTo = it.arguments["to"] as Long
+            val partition = it.arguments["partition"] as Int
             safeKafkaConsumer.findInMessages(topic = name, partition = partition, startOffset = splitFrom, endOffset = splitTo) { true }.map {
                 Record(it.topic(), it.partition(), it.key().orEmpty(), it.value(), it.offset())
             }
@@ -91,17 +102,18 @@ class KafkaService(val kodein: Kodein) : Service {
 
     fun searchTopic(ctx: Context) {
         val name = ctx.param("name").orEmpty()
-        val partition = ctx.queryParam("partition")?.toInt()!!
         val from = ctx.queryParamOrDefault("from", "0").toLong()
         val to = ctx.queryParamOrDefault("to", Int.MAX_VALUE.toString()).toLong()
         val keyword = ctx.queryParam("query").orEmpty()
         val kafkaSplittableTask = KafkaSplittableTask(mapOf(
                 "from" to from,
-                "to" to to
+                "to" to to,
+                "topic" to name
         ), kodein)
         val records = splitter.split(kafkaSplittableTask) {
             val splitFrom = it.arguments["from"] as Long
             val splitTo = it.arguments["to"] as Long
+            val partition = it.arguments["partition"] as Int
             safeKafkaConsumer.findInMessages(topic = name, partition = partition, startOffset = splitFrom, endOffset = splitTo)
             {
                 it.value().contains(keyword)
@@ -120,9 +132,10 @@ class KafkaService(val kodein: Kodein) : Service {
         val message = ctx.bodyAsClass(Message::class.java)
         easyKafkaProducer.produce(name, key = message.key, message = JavalinJacksonPlugin.toJson(message.text))
         ctx.status(HttpStatus.SC_OK)
-
     }
 
+
+    data class SearchRequest(val fields: Map<String, String>)
     data class Message(val key: String? = null, val text: Any)
     data class Topic(val name: String, val partitions: Int, val replicationFactor: Int)
     data class Record(val topic: String, val partition: Int, val key: String, val message: String, val offset: Long)

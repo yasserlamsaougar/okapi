@@ -9,6 +9,7 @@ import org.apache.hadoop.fs.Path
 import org.minicluster.helpers.config.ConfigHelper
 import org.minicluster.helpers.kerberos.AuthHelper
 import java.io.File
+import java.io.IOException
 import java.io.InputStream
 
 
@@ -28,15 +29,29 @@ class HdfsHelper(val kodein: Kodein) {
         })
     }
 
-    fun listFiles(path: String, recursive: Boolean = false): MutableList<String> {
+    fun listFiles(path: String, recursive: Boolean = false, filter: (Path) -> Boolean = { true }): MutableList<Path> {
         authHelper.authenticate()
-        val listOfFiles = mutableListOf<String>()
-        val hadoopListFiles = fs.listFiles(Path(path), recursive)
-        while (hadoopListFiles.hasNext()) {
-            val next = hadoopListFiles.next()
-            listOfFiles.add(next.path.toString())
-        }
+        val listOfFiles = mutableListOf<Path>()
+        listFilesRecu(Path(path), listOfFiles, recursive, filter)
         return listOfFiles
+    }
+
+    private fun listFilesRecu(path: Path, output: MutableList<Path>, recursive: Boolean, filter: (Path) -> Boolean) {
+        val hadoopListFiles = fs.listStatus(path, filter)
+        val partitions = hadoopListFiles.partition { it.isFile }
+        partitions.first.forEach { output.add(it.path) }
+        partitions.second.forEach {
+            try {
+                if(recursive) {
+                    listFilesRecu(it.path, output, recursive, filter)
+                }
+                else {
+                    output.add(it.path)
+                }
+            } catch (e: IOException) {
+
+            }
+        }
     }
 
     fun deletePath(path: String, recursive: Boolean = false) {
@@ -46,7 +61,7 @@ class HdfsHelper(val kodein: Kodein) {
 
     fun writeFile(inputFile: String, dest: String, overwrite: Boolean = true): Boolean {
         authHelper.authenticate()
-        if(overwrite) {
+        if (overwrite) {
             fs.delete(Path(dest), true)
         }
         return FileUtil.copy(File(inputFile), fs, Path(dest), false, configuration)
@@ -58,12 +73,12 @@ class HdfsHelper(val kodein: Kodein) {
         }
     }
 
-    fun readStream(inputFile: String) : InputStream {
+    fun readStream(inputFile: String): InputStream {
         authHelper.authenticate()
         return fs.open(Path(inputFile))
     }
 
-    fun writeStream(inputStream: InputStream, dest: String, overwrite: Boolean = true) : Long {
+    fun writeStream(inputStream: InputStream, dest: String, overwrite: Boolean = true): Long {
         authHelper.authenticate()
         val file = fs.create(Path(dest), overwrite)
         val bytesWritten = inputStream.copyTo(file)
@@ -71,12 +86,12 @@ class HdfsHelper(val kodein: Kodein) {
         return bytesWritten
     }
 
-    fun fileExists(inputFile: String) : Boolean {
+    fun fileExists(inputFile: String): Boolean {
         authHelper.authenticate()
         return fs.exists(Path(inputFile))
     }
 
-    fun isSimpleFile(inputFile: String) : Boolean{
+    fun isSimpleFile(inputFile: String): Boolean {
         authHelper.authenticate()
         return fs.isFile(Path(inputFile))
     }

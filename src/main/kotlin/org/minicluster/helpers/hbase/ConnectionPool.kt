@@ -10,6 +10,8 @@ import org.apache.hadoop.hbase.client.ConnectionFactory
 import org.minicluster.helpers.config.ConfigHelper
 import org.minicluster.helpers.kerberos.AuthHelper
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.streams.asStream
+import kotlin.streams.toList
 
 class ConnectionPool(val kodein: Kodein) {
     private val hbaseConfiguration: Configuration = Configuration(true)
@@ -21,11 +23,10 @@ class ConnectionPool(val kodein: Kodein) {
 
     init {
         hbaseConfiguration.addResource(Path(configHelper.servicesConfig.hbaseSite().toUri()))
-        hbaseConfiguration.setInt(HConstants.HBASE_CLIENT_RETRIES_NUMBER, 3)
-        connections = (0 until connectionPoolSize).map {
+        hbaseConfiguration.setInt(HConstants.HBASE_CLIENT_RETRIES_NUMBER, configHelper.servicesConfig.hbaseRetry())
+        connections = (0 until connectionPoolSize).asSequence().asStream().parallel().map {
             createConnection()
-        }.toMutableList()
-
+        }.toList().toMutableList()
     }
 
     fun getConnection(): Connection {

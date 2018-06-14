@@ -6,7 +6,7 @@ import org.apache.hadoop.hbase.*
 import org.apache.hadoop.hbase.client.*
 import org.apache.hadoop.hbase.client.coprocessor.AggregationClient
 import org.apache.hadoop.hbase.client.coprocessor.LongColumnInterpreter
-import org.apache.hadoop.hbase.coprocessor.AggregateImplementation
+import org.apache.hadoop.hbase.regionserver.ConstantSizeRegionSplitPolicy
 import org.apache.hadoop.hbase.util.Bytes
 import org.minicluster.helpers.hbase.parser.ScanParser
 
@@ -31,15 +31,42 @@ class HbaseHelper(val kodein: Kodein) {
             val tableDescriptor = HTableDescriptor(tableName)
             val colFamiliesSplitted = colFamilies.split(",")
             colFamiliesSplitted.forEach { e ->
-                val familyName = HColumnDescriptor(e)
+                val familyName = HColumnDescriptor(e).setMaxVersions(20)
                 tableDescriptor.addFamily(familyName)
             }
-            tableDescriptor.addCoprocessor(AggregateImplementation::class.java.canonicalName)
+            tableDescriptor.setMaxFileSize(10737418240)
+            tableDescriptor.setRegionSplitPolicyClassName(ConstantSizeRegionSplitPolicy::class.java.canonicalName)
             admin.createTable(tableDescriptor)
             return true
         }
         return false
     }
+
+    fun compact(table: String, isMajor: Boolean) : Boolean {
+        val admin = connectionPool.getConnection().admin
+        val tableName = TableName.valueOf(table)
+        if(admin.tableExists(tableName)) {
+            if(isMajor) {
+                admin.majorCompact(tableName)
+            }
+            else {
+                admin.compact(tableName)
+            }
+        }
+        return false
+    }
+
+    fun copyTable(table: String, snapshotName: String, targetTable: String) : Boolean  {
+        val admin = connectionPool.getConnection().admin
+        val tableName = TableName.valueOf(table)
+        if(admin.tableExists(tableName)) {
+            admin.snapshot(snapshotName, tableName)
+            admin.cloneSnapshot(snapshotName, TableName.valueOf(targetTable))
+            return true
+        }
+        return false
+    }
+
 
     fun deleteTable(table: String): Boolean {
         val admin = connectionPool.getConnection().admin
@@ -183,12 +210,15 @@ class HbaseHelper(val kodein: Kodein) {
     private fun createScan(vararg colFamilies: String, maxVersions:Int = 1): Scan {
         val scan = Scan()
         scan.maxVersions = maxVersions
+        scan.caching = 100
         colFamilies.forEach { scan.addFamily(it.bytes()) }
         return scan
     }
 
-    private fun createScan(startRow: ByteArray, endRow: ByteArray, vararg colFamilies: String): Scan {
+    private fun createScan(startRow: ByteArray, endRow: ByteArray, vararg colFamilies: String, maxVersions:Int = 1): Scan {
         val scan = Scan(startRow, endRow)
+        scan.caching = 100
+        scan.maxVersions = maxVersions
         colFamilies.forEach { scan.addFamily(it.bytes()) }
         return scan
     }

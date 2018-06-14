@@ -2,9 +2,9 @@ group 'minicluster-service'
 version '0.0.1-SNAPSHOT'
 
 buildscript {
-    ext.kotlin_version = '1.2.21'
+    ext.kotlin_version = '1.2.41'
     ext.kotlin_coroutine_version = '0.22'
-    ext.javalin_version = '1.3.0'
+    ext.javalin_version = '1.6.1'
     ext.kodein_version = '4.1.0'
     ext.slf4j_version = '1.7.25'
     ext.spek_version = '1.1.5'
@@ -12,35 +12,26 @@ buildscript {
     ext.expekt_version = '0.5.0'
     ext.mockk_version = '1.6.3'
     ext.cfg4k_version = '0.7.2'
-    ext.hadoop_version = '2.5.3.0-37'
+    ext.hadoop_version = '2.7.2'
     ext.kafka_artificat_version = "kafka_2.10"
-    ext.kafka_version = "0.10.0.${hadoop_version}"
+    ext.kafka_version = "0.10.0.2.5.3.0-37"
     ext.hbase_version = '1.3.1'
     ext.reflections_version = '0.9.11'
     ext.jackson_kotlin_version = '2.9.0'
     ext.common_upload_version = '1.3.3'
+    ext.spark_version = '2.10:1.6.3'
     repositories {
         mavenCentral()
     }
     dependencies {
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
-        classpath "org.junit.platform:junit-platform-gradle-plugin:$junit_platform_version"
     }
 }
 
 apply plugin: 'kotlin'
-apply plugin: 'org.junit.platform.gradle.plugin'
 apply plugin: 'antlr'
 
-junitPlatform {
-    filters {
-        engines {
-            include 'spek'
-        }
-    }
-}
 repositories {
-    mavenCentral()
     jcenter()
     maven {
         url 'http://repo.hortonworks.com/content/groups/public/'
@@ -48,6 +39,8 @@ repositories {
 }
 
 dependencies {
+    compile 'com.fasterxml.jackson.core:jackson-databind:2.9.0'
+    compile 'com.fasterxml.jackson.module:jackson-module-scala_2.10:2.9.0'
     compile "io.javalin:javalin:$javalin_version"
     compile "commons-fileupload:commons-fileupload:$common_upload_version"
     compile "com.fasterxml.jackson.module:jackson-module-kotlin:$jackson_kotlin_version"
@@ -68,15 +61,7 @@ dependencies {
     compile "org.apache.hbase:hbase-client:$hbase_version"
     compile group: 'org.antlr', name: 'antlr4-runtime', version: '4.7.1'
     compile 'javax.servlet:javax.servlet-api:3.1.0'
-    testCompile("org.jetbrains.spek:spek-api:$spek_version") {
-        exclude group: 'org.jetbrains.kotlin'
-    }
-    testCompile "com.winterbe:expekt:$expekt_version"
-    testCompile "io.mockk:mockk:$mockk_version"
-    testRuntime("org.jetbrains.spek:spek-junit-platform-engine:$spek_version") {
-        exclude group: 'org.junit.platform'
-        exclude group: 'org.jetbrains.kotlin'
-    }
+    compile "org.apache.spark:spark-core_$spark_version"
 
 }
 

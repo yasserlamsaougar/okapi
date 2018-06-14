@@ -42,6 +42,9 @@ class HbaseService(val kodein: Kodein) : Service {
                         get("/:namespace/:name/", this::countTable)
                         get("/:name/", this::countTable)
                     }
+                    path("copy") {
+                        get("/:namespace/:name/:snapshot/:target", this::copyTable)
+                    }
                     post("/put", this::putData)
                 }
             }
@@ -60,6 +63,14 @@ class HbaseService(val kodein: Kodein) : Service {
             ctx.status(HttpStatus.SC_CONFLICT)
         }
         ctx.json(table)
+    }
+
+    fun copyTable(ctx: Context) {
+        val namespace = ctx.param("namespace") ?: "default"
+        val name = ctx.param("name")
+        val snaphostName = ctx.param("snapshot")!!
+        val targetTable = ctx.param("target")
+        hbaseHelper.copyTable(table = getTableName(namespace, name), snapshotName = snaphostName, targetTable = getTableName(namespace, targetTable))
     }
 
     fun listTables(ctx: Context) {

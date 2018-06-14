@@ -14,13 +14,10 @@ class HbaseSplittableTask(override val arguments: Map<String, Any?>, override va
         val table = arguments["name"].toString()
         val namespace = arguments["namespace"].toString()
         val regionList = hbaseHelper.getRegions(getTableName(namespace, table))
-        return regionList!!.map {
-            println(Bytes.toString(it.startKey))
-            println(Bytes.toString(it.endKey))
+        return regionList!!.filter{!it.isOffline}.map {
             HbaseSplittableTask(mapOf(
                     "startKey" to it.startKey,
                     "endKey" to it.endKey
-
             ), kodein)
         }
     }

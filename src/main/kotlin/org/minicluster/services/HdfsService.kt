@@ -37,7 +37,16 @@ class HdfsService(val kodein: Kodein) : Service {
 
     fun listFiles(ctx: Context) {
         val path = ctx.queryParam("path")!!
-        ctx.json(hdfsHelper.listFiles(path, true))
+        val filter = ctx.queryParam("prefix").orEmpty()
+        val recursive = ctx.queryParamOrDefault("recursive", "false").toBoolean()
+        val listOfFiles = hdfsHelper.listFiles(path, recursive) {
+            it.name.startsWith(prefix = filter)
+        }
+        ctx.json(mapOf(
+                "files" to listOfFiles.map{
+                    it.name
+                })
+        )
     }
 
     fun deletePath(ctx: Context) {

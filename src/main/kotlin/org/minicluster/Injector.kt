@@ -1,7 +1,6 @@
 package org.minicluster
 
 import com.github.salomonbrys.kodein.*
-import org.minicluster.helpers.kerberos.AuthHelper
 import org.minicluster.helpers.config.ConfigHelper
 import org.minicluster.helpers.env.EnvHelper
 import org.minicluster.helpers.hbase.ConnectionPool
@@ -12,11 +11,12 @@ import org.minicluster.helpers.kafka.EasyKafkaConsumer
 import org.minicluster.helpers.kafka.EasyKafkaProducer
 import org.minicluster.helpers.kafka.KafkaHelper
 import org.minicluster.helpers.kafka.SafeKafkaConsumer
+import org.minicluster.helpers.kerberos.AuthHelper
 import org.minicluster.services.Service
 import org.minicluster.splitters.SimpleSplitter
 import org.minicluster.splitters.Splitter
 import org.reflections.Reflections
-import java.util.stream.Collectors
+import java.util.stream.Stream
 
 
 class Injector {
@@ -54,7 +54,7 @@ class Injector {
         bind() from provider {
             ScanParser(kodein)
         }
-        bind<List<Service>>() with singleton {
+        bind<Stream<Service>>() with singleton {
             getListOfServices(kodein)
         }
         bind<Splitter>() with singleton {
@@ -64,11 +64,11 @@ class Injector {
         constant("propertiesPrefix") with "datalab"
     }
 
-    fun getListOfServices(kodein: Kodein) : List<Service> {
+    fun getListOfServices(kodein: Kodein): Stream<Service> {
         val reflections = Reflections("org.minicluster.services")
         return reflections.getSubTypesOf(Service::class.java).parallelStream().map {
             it.getConstructor(Kodein::class.java).newInstance(kodein)
-        }.collect(Collectors.toList()).requireNoNulls()
+        }
     }
 
 }

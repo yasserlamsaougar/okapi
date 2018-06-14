@@ -18,6 +18,7 @@ interface ServicesConfig {
     fun keyTabUser(): String
     fun keyTab(): String
     fun hbasePoolSize(): Int = 1
+    fun hbaseRetry(): Int = 1
     fun consumerPoolSize(): Int = 1
 
     fun port(): Int = 7000
