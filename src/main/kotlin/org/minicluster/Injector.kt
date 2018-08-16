@@ -60,8 +60,8 @@ class Injector {
         bind<Splitter>() with singleton {
             SimpleSplitter()
         }
-        constant("globalProperties") with "/main.conf"
-        constant("propertiesPrefix") with "datalab"
+        constant("globalProperties") with System.getProperty("config", "/main.conf")
+        constant("propertiesPrefix") with System.getProperty("env", "local")
     }
 
     fun getListOfServices(kodein: Kodein): Stream<Service> {

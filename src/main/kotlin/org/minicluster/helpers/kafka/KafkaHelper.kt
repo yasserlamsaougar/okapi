@@ -11,11 +11,10 @@ import java.util.*
 
 class KafkaHelper(val kodein: Kodein) {
     val configHelper: ConfigHelper = kodein.instance()
-    val zkUtils: ZkUtils
-
-    init {
-        zkUtils = ZkUtils.apply(configHelper.servicesConfig.zookeeperConnectionString(), 3000, 3000, true)
+    val zkUtils: ZkUtils by lazy {
+        ZkUtils.apply(configHelper.servicesConfig.zookeeperConnectionString(), 3000, 3000, true)
     }
+
 
     fun listTopics(): List<String> {
         return JavaConversions.seqAsJavaList(zkUtils.allTopics)

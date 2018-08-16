@@ -1,10 +1,10 @@
 group 'minicluster-service'
-version '0.0.1-SNAPSHOT'
+version '1.0.0-SNAPSHOT'
 
 buildscript {
-    ext.kotlin_version = '1.2.41'
-    ext.kotlin_coroutine_version = '0.22'
-    ext.javalin_version = '1.6.1'
+    ext.kotlin_version = '1.2.60'
+    ext.kotlin_coroutine_version = '0.24.0'
+    ext.javalin_version = '1.7.0'
     ext.kodein_version = '4.1.0'
     ext.slf4j_version = '1.7.25'
     ext.spek_version = '1.1.5'
@@ -39,8 +39,8 @@ repositories {
 }
 
 dependencies {
-    compile 'com.fasterxml.jackson.core:jackson-databind:2.9.0'
-    compile 'com.fasterxml.jackson.module:jackson-module-scala_2.10:2.9.0'
+    compile "com.fasterxml.jackson.core:jackson-databind:$jackson_kotlin_version"
+    compile "com.fasterxml.jackson.module:jackson-module-scala_2.10:$jackson_kotlin_version"
     compile "io.javalin:javalin:$javalin_version"
     compile "commons-fileupload:commons-fileupload:$common_upload_version"
     compile "com.fasterxml.jackson.module:jackson-module-kotlin:$jackson_kotlin_version"
